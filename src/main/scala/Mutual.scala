@@ -8,12 +8,15 @@ object Mutual {
         val conf = new SparkConf().setAppName("mutual")
         val sc = new SparkContext(conf)
 
-        val userA = args(0)
-        val userB = args(1)
+        val userA = args(1)
+        val userB = args(2)
 
-        val input = sc.textFile("input.txt");
-        val filteredInput = input.filter(line => (line.contains(userA + "\t") || line.contains(userB + "\t"))).map(line => line.split("\t")).flatMap(line => line(1).split(",")).countByValue().filter(line => (line._2 > 1)).map(line => line._1).foreach(println);
-        
+        val input = sc.textFile(args(0));
+        val userAFriends = input.filter(line => line.contains(userA + "\t")).flatMap(line => line.split("\t")(1).split(","))
+        val userBFriends = input.filter(line => line.contains(userB + "\t")).flatMap(line => line.split("\t")(1).split(","))
 
+        val unionOfFriends = userAFriends.union(userBFriends)
+        val mutualFriends = unionOfFriends.map(friend => (friend, 1)).reduceByKey(_ + _).filter(friendCount => (friendCount._2 == 2)).map(friendCount => friendCount.swap).reduceByKey(_ + "," + _).map(countFriend => (userA + "," + userB + "\t" + countFriend._2))
+        mutualFriends.saveAsTextFile(".\\output")
     }
 }
